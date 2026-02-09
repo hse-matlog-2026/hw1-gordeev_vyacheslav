@@ -63,7 +63,18 @@ def evaluate(formula: Formula, model: Model) -> bool:
     """
     assert is_model(model)
     assert formula.variables().issubset(variables(model))
-    # Task 2.1
+    if is_variable(formula.root):
+        return model[formula.root]
+    elif is_constant(formula.root):
+        return formula.root == 'T'
+    elif is_unary(formula.root):
+        return not evaluate(formula.first, model)
+    elif formula.root == '&':
+        return evaluate(formula.first, model) and evaluate(formula.second, model)
+    elif formula.root == '|':
+        return evaluate(formula.first, model) or evaluate(formula.second, model)
+    else:
+        return not evaluate(formula.first, model) or evaluate(formula.second, model)
 
 def all_models(variables: Sequence[str]) -> Iterable[Model]:
     """Calculates all possible models over the given variable names.
@@ -85,7 +96,21 @@ def all_models(variables: Sequence[str]) -> Iterable[Model]:
     """
     for v in variables:
         assert is_variable(v)
-    # Task 2.2
+    
+    if not variables:
+        yield {}
+        return
+    
+    def generate_models(index, current):
+        if index == len(variables):
+            yield dict(current)
+        else:
+            current[variables[index]] = False
+            yield from generate_models(index + 1, current)
+            current[variables[index]] = True
+            yield from generate_models(index + 1, current)
+    
+    yield from generate_models(0, {})
 
 def truth_values(formula: Formula, models: Iterable[Model]) -> Iterable[bool]:
     """Calculates the truth value of the given formula in each of the given
@@ -103,7 +128,8 @@ def truth_values(formula: Formula, models: Iterable[Model]) -> Iterable[bool]:
         >>> list(truth_values(Formula.parse('~(p&q76)'), all_models(['p', 'q76'])))
         [True, True, True, False]
     """
-    # Task 2.3
+    for model in models:
+        yield evaluate(formula, model)
 
 def print_truth_table(formula: Formula) -> None:
     """Prints the truth table of the given formula, with variable-name columns
@@ -121,7 +147,21 @@ def print_truth_table(formula: Formula) -> None:
         | T | F   | T        |
         | T | T   | F        |
     """
-    # Task 2.4
+    vars = sorted(formula.variables())
+    header_vars = " | ".join(vars)
+    formula_str = str(formula)
+    header = f"| {header_vars} | {formula_str} |"
+    separator = "|---" * len(vars) + "|" + "-" * (len(formula_str) + 2) + "|"
+    print(header)
+    print(separator)
+
+    for model in all_models(vars):
+        values = []
+        for var in vars:
+            values.append('T' if model[var] else 'F')
+        value_str = " | ".join(f"{v:<{len(var)}}" for v, var in zip(values, vars))
+        result = 'T' if evaluate(formula, model) else 'F'
+        print(f"| {value_str} | {result:<{len(formula_str)}} |")
 
 def is_tautology(formula: Formula) -> bool:
     """Checks if the given formula is a tautology.
@@ -132,7 +172,11 @@ def is_tautology(formula: Formula) -> bool:
     Returns:
         ``True`` if the given formula is a tautology, ``False`` otherwise.
     """
-    # Task 2.5a
+    vars = list(formula.variables())
+    for model in all_models(vars):
+        if not evaluate(formula, model):
+            return False
+    return True
 
 def is_contradiction(formula: Formula) -> bool:
     """Checks if the given formula is a contradiction.
@@ -143,7 +187,11 @@ def is_contradiction(formula: Formula) -> bool:
     Returns:
         ``True`` if the given formula is a contradiction, ``False`` otherwise.
     """
-    # Task 2.5b
+    vars = list(formula.variables())
+    for model in all_models(vars):
+        if evaluate(formula, model):
+            return False
+    return True
 
 def is_satisfiable(formula: Formula) -> bool:
     """Checks if the given formula is satisfiable.
@@ -154,7 +202,11 @@ def is_satisfiable(formula: Formula) -> bool:
     Returns:
         ``True`` if the given formula is satisfiable, ``False`` otherwise.
     """
-    # Task 2.5c
+    vars = list(formula.variables())
+    for model in all_models(vars):
+        if evaluate(formula, model):
+            return True
+    return False
 
 def _synthesize_for_model(model: Model) -> Formula:
     """Synthesizes a propositional formula in the form of a single conjunctive
@@ -170,7 +222,19 @@ def _synthesize_for_model(model: Model) -> Formula:
     """
     assert is_model(model)
     assert len(model.keys()) > 0
-    # Task 2.6
+
+    literals = []
+    for var, value in model.items():
+        if value:
+            literals.append(Formula(var))
+        else:
+            literals.append(Formula('~', Formula(var)))
+    
+    result = literals[0]
+    for literal in literals[1:]:
+        result = Formula('&', result, literal)
+    
+    return result
 
 def synthesize(variables: Sequence[str], values: Iterable[bool]) -> Formula:
     """Synthesizes a propositional formula in DNF over the given variable names,
@@ -195,7 +259,22 @@ def synthesize(variables: Sequence[str], values: Iterable[bool]) -> Formula:
         False
     """
     assert len(variables) > 0
-    # Task 2.7
+    
+    clauses = []
+    models = list(all_models(variables))
+    for model, value in zip(models, values):
+        if value:
+            clause = _synthesize_for_model(model)
+            clauses.append(clause)
+    
+    if not clauses:
+        return Formula('&', Formula(variables[0]), Formula('~', Formula(variables[0])))
+    
+    result = clauses[0]
+    for clause in clauses[1:]:
+        result = Formula('|', result, clause)
+    
+    return result
 
 def _synthesize_for_all_except_model(model: Model) -> Formula:
     """Synthesizes a propositional formula in the form of a single disjunctive
