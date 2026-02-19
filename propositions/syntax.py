@@ -59,9 +59,9 @@ def is_binary(string: str) -> bool:
     Returns:
         ``True`` if the given string is a binary operator, ``False`` otherwise.
     """
-    return string == '&' or string == '|' or string == '->'
+    #return string == '&' or string == '|' or string == '->'
     # For Chapter 3:
-    # return string in {'&', '|',  '->', '+', '<->', '-&', '-|'}
+    return string in {'&', '|',  '->', '+', '<->', '-&', '-|'}
 
 @frozen
 class Formula:
@@ -119,7 +119,7 @@ class Formula:
     @memoized_parameterless_method
     def variables(self) -> Set[str]:
         """Finds all variable names in the current formula.
-
+п
         Returns:
             A set of all variable names used in the current formula.
         """
@@ -199,14 +199,17 @@ class Formula:
             if not remainder:
                 return None, "Missing operator"
             
-            if remainder[0] in '&|':
-                op = remainder[0]
-                rest = remainder[1:]
-            elif remainder.startswith('->'):
-                op = '->'
-                rest = remainder[2:]
-            else:
+            # Determine the binary operator
+            operators = {'&', '|', '->', '+', '<->', '-&', '-|'}
+            found_op = None
+            for op in operators:
+                if remainder.startswith(op):
+                    found_op = op
+                    break
+            if found_op is None:
                 return None, "Invalid operator"
+            
+            rest = remainder[len(found_op):]
             
             if not rest:
                 return None, "Missing second operand"
@@ -218,7 +221,7 @@ class Formula:
             if not remainder2 or remainder2[0] != ')':
                 return None, "Missing closing parenthesis"
             
-            return Formula(op, parsed_first, parsed_second), remainder2[1:]
+            return Formula(found_op, parsed_first, parsed_second), remainder2[1:]
         
         return None, "Invalid formula"
         
@@ -368,27 +371,30 @@ class Formula:
             ~(~~(~x|~y)|~~z)
         """
         for operator in substitution_map:
-            assert is_constant(operator) or is_unary(operator) or \
-                   is_binary(operator)
+            assert is_constant(operator) or is_unary(operator) or is_binary(operator)
             assert substitution_map[operator].variables().issubset({'p', 'q'})
         
         if is_variable(self.root):
             return self
-        elif self.root in substitution_map:
-            template = substitution_map[self.root]
-            if is_constant(self.root):
-                return template
-            elif is_unary(self.root):
+        if is_constant(self.root):
+            if self.root in substitution_map:
+                return substitution_map[self.root]
+            else:
+                return self
+        if is_unary(self.root):
+            if self.root in substitution_map:
+                template = substitution_map[self.root]
                 return template.substitute_variables({'p': self.first.substitute_operators(substitution_map)})
             else:
-                return template.substitute_variables({
-                    'p': self.first.substitute_operators(substitution_map),
-                    'q': self.second.substitute_operators(substitution_map)
-                })
-        elif is_unary(self.root):
-            return Formula('~', self.first.substitute_operators(substitution_map))
+                return Formula(self.root, self.first.substitute_operators(substitution_map))
+        # binary
+        if self.root in substitution_map:
+            template = substitution_map[self.root]
+            return template.substitute_variables({
+                'p': self.first.substitute_operators(substitution_map),
+                'q': self.second.substitute_operators(substitution_map)
+            })
         else:
             return Formula(self.root,
-                          self.first.substitute_operators(substitution_map),
-                          self.second.substitute_operators(substitution_map))
-        
+                        self.first.substitute_operators(substitution_map),
+                        self.second.substitute_operators(substitution_map))

@@ -73,8 +73,23 @@ def evaluate(formula: Formula, model: Model) -> bool:
         return evaluate(formula.first, model) and evaluate(formula.second, model)
     elif formula.root == '|':
         return evaluate(formula.first, model) or evaluate(formula.second, model)
-    else:
+    elif formula.root == '->':
         return not evaluate(formula.first, model) or evaluate(formula.second, model)
+    elif formula.root == '+':
+        # XOR: true if operands differ
+        return evaluate(formula.first, model) != evaluate(formula.second, model)
+    elif formula.root == '<->':
+        # equivalence: true if operands are equal
+        return evaluate(formula.first, model) == evaluate(formula.second, model)
+    elif formula.root == '-&':
+        # NAND: not (A and B)
+        return not (evaluate(formula.first, model) and evaluate(formula.second, model))
+    elif formula.root == '-|':
+        # NOR: not (A or B)
+        return not (evaluate(formula.first, model) or evaluate(formula.second, model))
+    else:
+        # This should not happen due to the checks in the constructor
+        raise ValueError(f"Unknown operator {formula.root}")
 
 def all_models(variables: Sequence[str]) -> Iterable[Model]:
     """Calculates all possible models over the given variable names.
