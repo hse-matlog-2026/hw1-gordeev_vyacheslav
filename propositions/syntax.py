@@ -119,7 +119,7 @@ class Formula:
     @memoized_parameterless_method
     def variables(self) -> Set[str]:
         """Finds all variable names in the current formula.
-п
+
         Returns:
             A set of all variable names used in the current formula.
         """

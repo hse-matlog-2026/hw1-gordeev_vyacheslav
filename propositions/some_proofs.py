@@ -30,6 +30,23 @@ def prove_and_commutativity() -> Proof:
         the inference rules `A_RULE`, `AE1_RULE`, and `AE2_RULE`.
     """
     # Task 4.7
+    from propositions.syntax import Formula
+    from propositions.proofs import InferenceRule, Proof
+
+    p_and_q = Formula.parse('(p&q)')
+    q_and_p = Formula.parse('(q&p)')
+    p = Formula.parse('p')
+    q = Formula.parse('q')
+
+    line0 = Proof.Line(p_and_q)
+    line1 = Proof.Line(p, AE2_RULE, [0])    
+    line2 = Proof.Line(q, AE1_RULE, [0])
+    line3 = Proof.Line(q_and_p, A_RULE, [2, 1])
+
+    lines = [line0, line1, line2, line3]
+    statement = InferenceRule([p_and_q], q_and_p)
+    rules = {A_RULE, AE1_RULE, AE2_RULE}
+    return Proof(statement, rules, lines)
 
 def prove_I0() -> Proof:
     """Proves `~propositions.axiomatic_systems.I0` via
@@ -43,6 +60,31 @@ def prove_I0() -> Proof:
         `~propositions.axiomatic_systems.D`.
     """
     # Task 4.8
+    from propositions.syntax import Formula
+    from propositions.proofs import InferenceRule, Proof
+    from propositions.axiomatic_systems import MP, I1, D
+    p_imp_p = Formula.parse('(p->p)')
+    # line0: (p->((p->p)->p))
+    f0 = Formula.parse('(p->((p->p)->p))')
+    # line1: ((p->((p->p)->p))->((p->(p->p))->(p->p)))
+    f1 = Formula.parse('((p->((p->p)->p))->((p->(p->p))->(p->p)))')
+    # line2: ((p->(p->p))->(p->p))
+    f2 = Formula.parse('((p->(p->p))->(p->p))')
+    # line3: (p->(p->p))
+    f3 = Formula.parse('(p->(p->p))')
+    # line4: (p->p)
+    f4 = p_imp_p
+
+    lines = [
+        Proof.Line(f0, I1, []),
+        Proof.Line(f1, D, []),
+        Proof.Line(f2, MP, [1, 0]),
+        Proof.Line(f3, I1, []),
+        Proof.Line(f4, MP, [2, 3])
+    ]
+    statement = InferenceRule([], p_imp_p)
+    rules = {MP, I1, D}
+    return Proof(statement, rules, lines)
 
 #: Hypothetical syllogism
 HS = InferenceRule([Formula.parse('(p->q)'), Formula.parse('(q->r)')],
